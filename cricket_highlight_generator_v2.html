@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cricket Highlight Generator v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:#0a0c10;--card:#111318;--card2:#181c22;--border:rgba(255,255,255,0.07);
+  --accent:#00e5a0;--accent2:#f7b731;--accent3:#ff4757;--accent4:#3d91ff;
+  --text:#eaeaea;--muted:#7a7f8a;
+  --six:#00e5a0;--four:#3d91ff;--wicket:#ff4757;--milestone:#f7b731;--pressure:#ff6b35;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+
+header{background:#0d1117;border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--accent);}
+.logo span{color:var(--text);}
+.ver-badge{background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);color:var(--accent);font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:1px;}
+
+/* APP LAYOUT */
+.app{display:grid;grid-template-columns:420px 1fr;gap:20px;max-width:1340px;margin:0 auto;padding:24px 20px;}
+
+/* PANELS */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;}
+.panel:last-child{margin-bottom:0;}
+.ph{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.ph h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);}
+.pb{padding:18px;}
+
+/* SOURCE TABS */
+.src-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);}
+.src-tab{flex:1;padding:11px 6px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;text-align:center;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.18s;letter-spacing:.5px;text-transform:uppercase;}
+.src-tab.active{color:var(--accent);border-color:var(--accent);}
+.src-tab:hover:not(.active){color:var(--text);}
+.src-pane{display:none;padding:18px;}
+.src-pane.active{display:block;}
+
+/* DROP ZONE */
+.dropzone{border:2px dashed rgba(0,229,160,0.25);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;}
+.dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:rgba(0,229,160,0.04);}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.dz-icon{font-size:32px;margin-bottom:10px;}
+.dz-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.dz-sub{font-size:11px;color:var(--muted);}
+.file-loaded{background:rgba(0,229,160,0.08);border-radius:8px;padding:10px 14px;margin-top:12px;display:none;align-items:center;gap:10px;font-size:12px;}
+.file-loaded.show{display:flex;}
+.file-loaded .fname{color:var(--accent);font-weight:600;flex:1;}
+
+/* TEMPLATE DOWNLOAD */
+.template-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.18s;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#000;}
+.btn-accent:hover{background:#00fbb3;transform:translateY(-1px);}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn-outline:hover{background:var(--card2);}
+.btn-dim{background:var(--card2);color:var(--muted);border:1px solid var(--border);}
+.btn-dim:hover{color:var(--text);border-color:rgba(255,255,255,0.15);}
+.btn-full{width:100%;justify-content:center;margin-top:10px;padding:11px;}
+
+/* FORM INPUTS */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-row.triple{grid-template-columns:1fr 1fr 1fr;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+input[type=text],input[type=number],select,textarea{
+  background:var(--card2);border:1px solid var(--border);border-radius:7px;
+  color:var(--text);padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:12px;width:100%;
+  transition:border-color 0.15s;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(0,229,160,0.5);}
+select option{background:var(--card);}
+textarea{resize:vertical;min-height:80px;}
+
+/* MANUAL ENTRY TABLE */
+.entry-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px;}
+.entry-table th{padding:6px 8px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);font-weight:500;text-align:left;}
+.entry-table td{padding:4px 4px;}
+.entry-table input,.entry-table select{padding:5px 6px;font-size:11px;border-radius:5px;}
+.entry-table .del-btn{background:rgba(255,71,87,0.12);color:var(--wicket);border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.entry-table .del-btn:hover{background:rgba(255,71,87,0.25);}
+.add-row-btn{margin-top:8px;width:100%;background:rgba(0,229,160,0.06);border:1px dashed rgba(0,229,160,0.25);color:var(--accent);border-radius:7px;padding:8px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;}
+.add-row-btn:hover{background:rgba(0,229,160,0.1);}
+.entry-scroll{max-height:260px;overflow-y:auto;}
+
+/* JSON TEXTAREA */
+.json-hint{font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.6;}
+.json-hint code{background:var(--card2);padding:1px 5px;border-radius:3px;color:var(--accent2);font-size:10px;}
+
+/* MATCH INFO */
+.match-form .form-row{grid-template-columns:1fr 1fr;}
+.score-display{background:var(--card2);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+.sd-team{text-align:center;}
+.sd-team .tname{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.sd-team .tscore{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--accent);}
+.sd-team .tovers{font-size:10px;color:var(--muted);}
+
+/* CRITERIA */
+.crit-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
+.ci{display:flex;align-items:center;gap:7px;background:var(--card2);border-radius:7px;padding:7px 10px;cursor:pointer;border:1px solid transparent;transition:all 0.15s;}
+.ci.active{border-color:rgba(0,229,160,0.4);background:rgba(0,229,160,0.05);}
+.ci .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.ci .lbl{font-size:11px;color:var(--muted);}
+.ci.active .lbl{color:var(--text);}
+.thresh-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.thresh-row label{font-size:10px;color:var(--muted);white-space:nowrap;}
+input[type=range]{flex:1;accent-color:var(--accent);}
+.thresh-val{font-size:12px;color:var(--accent);font-weight:600;min-width:28px;}
+
+/* PREVIEW TABLE */
+.prev-wrap{max-height:220px;overflow-y:auto;margin-top:12px;}
+.bt{width:100%;border-collapse:collapse;font-size:11px;}
+.bt th{padding:5px 8px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);font-weight:500;text-align:left;}
+.bt td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.025);color:var(--muted);}
+.bt tr.sel td{background:rgba(0,229,160,0.04);color:var(--text);}
+.sb{display:inline-block;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:10px;font-weight:600;}
+.sb-6{background:var(--six);color:#000;}
+.sb-4{background:var(--four);color:#fff;}
+.sb-w{background:var(--wicket);color:#fff;}
+.sb-o{background:var(--card2);color:var(--text);}
+.ep{display:inline-flex;align-items:center;padding:2px 6px;border-radius:20px;font-size:9px;font-weight:600;}
+.ep-6{background:rgba(0,229,160,0.15);color:var(--six);}
+.ep-4{background:rgba(61,145,255,0.15);color:var(--four);}
+.ep-w{background:rgba(255,71,87,0.15);color:var(--wicket);}
+.ep-m{background:rgba(247,183,49,0.15);color:var(--milestone);}
+.ep-n{background:rgba(255,255,255,0.06);color:var(--muted);}
+.chk{width:13px;height:13px;border-radius:3px;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;}
+.chk.yes{background:var(--accent);border-color:var(--accent);}
+.chk.yes::after{content:'✓';font-size:8px;color:#000;font-weight:700;}
+.sc-val{font-size:10px;font-weight:600;}
+.sc-hi{color:var(--accent);}
+.sc-md{color:var(--accent2);}
+.sc-lo{color:var(--muted);}
+
+/* STATUS BAR */
+.data-status{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;font-size:11px;margin-bottom:10px;}
+.ds-ok{background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.2);color:var(--accent);}
+.ds-warn{background:rgba(247,183,49,0.08);border:1px solid rgba(247,183,49,0.2);color:var(--accent2);}
+.ds-none{background:var(--card2);border:1px solid var(--border);color:var(--muted);}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* RIGHT SIDE */
+.right{display:flex;flex-direction:column;gap:16px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+.sc-num{font-family:'Bebas Neue',sans-serif;font-size:30px;}
+.sc-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+
+/* OUTPUT TABS */
+.otabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--border);}
+.otab{padding:10px 12px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;text-transform:uppercase;letter-spacing:.5px;}
+.otab.active{color:var(--accent);border-color:var(--accent);}
+.otc{display:none;padding:18px;}
+.otc.active{display:block;}
+
+/* HIGHLIGHT CARDS */
+.hl-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:46px 1fr auto;gap:12px;align-items:center;position:relative;overflow:hidden;cursor:pointer;transition:all 0.15s;}
+.hl-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.hl-card.t-six::before{background:var(--six);}
+.hl-card.t-four::before{background:var(--four);}
+.hl-card.t-wicket::before{background:var(--wicket);}
+.hl-card.t-milestone::before{background:var(--milestone);}
+.hl-card.t-pressure::before{background:var(--pressure);}
+.hl-card.t-winning::before{background:var(--accent2);}
+.hl-card:hover{transform:translateY(-1px);border-color:rgba(255,255,255,0.12);}
+.hl-over{font-family:'Bebas Neue',sans-serif;font-size:21px;text-align:center;color:var(--muted);}
+.hl-over small{font-size:9px;display:block;font-family:'DM Sans',sans-serif;letter-spacing:1px;text-transform:uppercase;}
+.hl-info h3{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.hl-info p{font-size:10px;color:var(--muted);}
+.hl-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.htag{font-size:9px;padding:2px 6px;border-radius:20px;font-weight:600;}
+.ht-six{background:rgba(0,229,160,0.12);color:var(--six);}
+.ht-four{background:rgba(61,145,255,0.12);color:var(--four);}
+.ht-wicket{background:rgba(255,71,87,0.12);color:var(--wicket);}
+.ht-milestone{background:rgba(247,183,49,0.12);color:var(--milestone);}
+.ht-pressure{background:rgba(255,107,53,0.12);color:var(--pressure);}
+.ht-emotion{background:rgba(180,100,255,0.12);color:#b464ff;}
+.ht-skill{background:rgba(100,180,255,0.12);color:#64b4ff;}
+.hl-sc{text-align:right;}
+.hl-sc .num{font-family:'Bebas Neue',sans-serif;font-size:24px;}
+.hl-sc .lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.hl-scroll{max-height:500px;overflow-y:auto;padding-right:2px;}
+
+/* EMPTY / PROCESSING */
+.empty{text-align:center;padding:60px 20px;}
+.empty-icon{font-size:44px;margin-bottom:12px;}
+.empty-txt{font-size:13px;color:var(--muted);}
+.proc{text-align:center;padding:50px;display:none;}
+.proc.show{display:block;}
+.spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.75s linear infinite;margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.proc-msg{font-size:12px;color:var(--muted);}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+
+/* ANALYSIS */
+.bar-row{margin-bottom:10px;}
+.bar-row .bar-info{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;}
+.bar-track{background:var(--card2);border-radius:3px;height:5px;}
+.bar-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+
+/* VALIDATION ERRORS */
+.err-box{background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--wicket);margin-top:8px;display:none;}
+.err-box.show{display:block;}
+.err-box ul{padding-left:14px;margin-top:4px;}
+.err-box li{margin-bottom:2px;}
+
+/* EXPORT BTN */
+.export-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+
+/* RESPONSIVE */
+@media(max-width:900px){.app{grid-template-columns:1fr;}.stats-row{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Cricket<span>HL</span> <span style="font-family:'DM Sans';font-size:12px;color:var(--muted);font-weight:400;letter-spacing:0">Highlight Generator</span></div>
+  </div>
+  <span class="ver-badge">v2.0 · Multi-Source Input</span>
+</header>
+
+<div class="app">
+
+<!-- ═══ LEFT COLUMN ═══ -->
+<div>
+
+  <!-- DATA SOURCE PANEL -->
+  <div class="panel">
+    <div class="ph">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      <h2>Data Source</h2>
+    </div>
+    <!-- SOURCE TABS -->
+    <div class="src-tabs">
+      <div class="src-tab active" onclick="switchSrc('upload',this)">📂 Upload</div>
+      <div class="src-tab" onclick="switchSrc('manual',this)">✏️ Manual</div>
+      <div class="src-tab" onclick="switchSrc('json',this)">{ } JSON</div>
+      <div class="src-tab" onclick="switchSrc('sample',this)">🏏 Sample</div>
+    </div>
+
+    <!-- UPLOAD PANE -->
+    <div class="src-pane active" id="pane-upload">
+      <div class="dropzone" id="dropzone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv,.json" onchange="onFileSelect(event)"/>
+        <div class="dz-icon">📊</div>
+        <div class="dz-title">Drop file here or click to browse</div>
+        <div class="dz-sub">Supports .xlsx · .xls · .csv · .json</div>
+      </div>
+      <div class="file-loaded" id="file-loaded">
+        <span style="font-size:18px" id="file-icon">📄</span>
+        <span class="fname" id="file-name">—</span>
+        <span id="file-rows" style="font-size:10px;color:var(--muted)">0 rows</span>
+        <button class="btn btn-dim" style="padding:4px 10px;font-size:10px" onclick="clearFile()">✕ Clear</button>
+      </div>
+      <div class="err-box" id="upload-err"></div>
+      <div class="template-row">
+        <button class="btn btn-outline" style="font-size:11px" onclick="downloadTemplate('xlsx')">⬇ Excel Template</button>
+        <button class="btn btn-outline" style="font-size:11px" onclick="downloadTemplate('csv')">⬇ CSV Template</button>
+        <button class="btn btn-outline" style="font-size:11px" onclick="downloadTemplate('json')">⬇ JSON Template</button>
+      </div>
+      <div style="margin-top:10px;background:var(--card2);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:1px">Required Columns</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;color:var(--muted)">
+          <span>• over <span style="color:var(--accent2)">(1–20)</span></span>
+          <span>• ball <span style="color:var(--accent2)">(1–6)</span></span>
+          <span>• runs <span style="color:var(--accent2)">(0–6)</span></span>
+          <span>• batsman <span style="color:var(--accent2)">(name)</span></span>
+          <span>• bowler <span style="color:var(--accent2)">(name)</span></span>
+          <span>• event <span style="color:var(--accent2)">(six/four/wicket...)</span></span>
+          <span>• pressure <span style="color:var(--accent2)">(1–10)</span></span>
+          <span>• crowd <span style="color:var(--accent2)">(0–20)</span></span>
+          <span>• shot <span style="color:var(--accent2)">(normal/good/excellent)</span></span>
+          <span>• milestone <span style="color:var(--muted)">(optional)</span></span>
+          <span>• turning <span style="color:var(--accent2)">(true/false)</span></span>
+          <span>• notes <span style="color:var(--muted)">(optional)</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANUAL PANE -->
+    <div class="src-pane" id="pane-manual">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Enter ball-by-ball data row by row. Click <strong style="color:var(--text)">+ Add Row</strong> to add more.</div>
+      <div class="entry-scroll">
+        <table class="entry-table" id="manual-table">
+          <thead>
+            <tr>
+              <th>Ov</th><th>Bl</th><th>Runs</th><th>Batsman</th><th>Bowler</th>
+              <th>Event</th><th>Press</th><th>Crowd</th><th>Shot</th><th>Milestone</th><th>TP</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="manual-tbody"></tbody>
+        </table>
+      </div>
+      <button class="add-row-btn" onclick="addManualRow()">+ Add Row</button>
+      <button class="btn btn-accent btn-full" onclick="loadManualData()" style="margin-top:8px">Load Manual Data</button>
+    </div>
+
+    <!-- JSON PANE -->
+    <div class="src-pane" id="pane-json">
+      <div class="json-hint">
+        Paste a JSON array of ball objects. Each object needs:
+        <code>over</code>, <code>ball</code>, <code>runs</code>, <code>batsman</code>, <code>bowler</code>,
+        <code>event</code>, <code>pressure</code>, <code>crowd</code>, <code>shot</code>,
+        <code>turning</code>. Optional: <code>milestone</code>, <code>notes</code>.
+      </div>
+      <textarea id="json-input" rows="10" placeholder='[
+  {
+    "over": 1, "ball": 4,
+    "runs": 6,
+    "batsman": "Virat Kohli",
+    "bowler": "Starc",
+    "event": "six",
+    "pressure": 1,
+    "crowd": 15,
+    "shot": "excellent",
+    "turning": false,
+    "notes": "Over mid-on"
+  }
+]'></textarea>
+      <div class="err-box" id="json-err"></div>
+      <button class="btn btn-accent btn-full" onclick="loadJsonData()">Parse & Load JSON</button>
+    </div>
+
+    <!-- SAMPLE PANE -->
+    <div class="src-pane" id="pane-sample">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Load a pre-built sample match — IND vs AUS 2nd T20I. 40 balls with realistic sixes, wickets, milestones, and a last-over finish.</div>
+      <div style="display:grid;gap:8px">
+        <div style="background:var(--card2);border-radius:8px;padding:12px;font-size:11px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">IND vs AUS — 2nd T20I</div>
+          <div style="color:var(--muted)">40 deliveries · 2 innings · Kohli century · last-ball finish</div>
+        </div>
+      </div>
+      <button class="btn btn-accent btn-full" onclick="loadSampleData()">Load Sample Match</button>
+    </div>
+  </div>
+
+  <!-- MATCH INFO -->
+  <div class="panel">
+    <div class="ph">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <h2>Match Info</h2>
+    </div>
+    <div class="pb match-form">
+      <div class="form-row">
+        <div class="form-group"><label>Team 1</label><input type="text" id="team1" value="India" placeholder="e.g. India"/></div>
+        <div class="form-group"><label>Team 2</label><input type="text" id="team2" value="Australia" placeholder="e.g. Australia"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Match Type</label>
+          <select id="match-type">
+            <option value="T20">T20</option>
+            <option value="ODI">ODI</option>
+            <option value="Test">Test</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Venue</label><input type="text" id="venue" value="Wankhede Stadium, Mumbai"/></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CRITERIA -->
+  <div class="panel">
+    <div class="ph">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      <h2>Highlight Criteria</h2>
+    </div>
+    <div class="pb">
+      <div class="crit-grid">
+        <div class="ci active" data-key="six"><div class="dot" style="background:var(--six)"></div><div class="lbl">Sixes (P1)</div></div>
+        <div class="ci active" data-key="four"><div class="dot" style="background:var(--four)"></div><div class="lbl">Fours (P1)</div></div>
+        <div class="ci active" data-key="wicket"><div class="dot" style="background:var(--wicket)"></div><div class="lbl">Wickets (P1)</div></div>
+        <div class="ci active" data-key="milestone"><div class="dot" style="background:var(--milestone)"></div><div class="lbl">Milestones (P3)</div></div>
+        <div class="ci active" data-key="pressure"><div class="dot" style="background:var(--pressure)"></div><div class="lbl">High Pressure</div></div>
+        <div class="ci active" data-key="emotion"><div class="dot" style="background:#b464ff"></div><div class="lbl">Crowd Emotion</div></div>
+        <div class="ci active" data-key="skill"><div class="dot" style="background:#64b4ff"></div><div class="lbl">Shot Quality</div></div>
+        <div class="ci active" data-key="turning"><div class="dot" style="background:var(--wicket)"></div><div class="lbl">Turning Points</div></div>
+      </div>
+      <div class="thresh-row">
+        <label>Min score:</label>
+        <input type="range" id="threshold" min="20" max="90" value="50" oninput="document.getElementById('tv').textContent=this.value"/>
+        <span class="thresh-val" id="tv">50</span>
+      </div>
+      <button class="btn btn-accent btn-full" onclick="runProcess()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Generate Highlights
+      </button>
+    </div>
+  </div>
+
+  <!-- DATA STATUS + PREVIEW -->
+  <div class="panel">
+    <div class="ph">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      <h2>Data Preview</h2>
+    </div>
+    <div class="pb" style="padding-top:10px">
+      <div class="data-status ds-none" id="data-status">
+        <div class="status-dot" style="background:var(--muted)"></div>
+        <span>No data loaded yet</span>
+      </div>
+      <div class="prev-wrap">
+        <table class="bt" id="prev-table">
+          <thead>
+            <tr><th>Over</th><th>Runs</th><th>Event</th><th>Batsman</th><th>Score</th><th>HL</th></tr>
+          </thead>
+          <tbody id="prev-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RIGHT COLUMN ═══ -->
+<div class="right">
+
+  <!-- STATS -->
+  <div class="stats-row" id="stats-row" style="display:none">
+    <div class="sc"><div class="sc-num" id="s-total" style="color:var(--accent)">—</div><div class="sc-lbl">Highlights</div></div>
+    <div class="sc"><div class="sc-num" id="s-sixes" style="color:var(--six)">—</div><div class="sc-lbl">Sixes</div></div>
+    <div class="sc"><div class="sc-num" id="s-wickets" style="color:var(--wicket)">—</div><div class="sc-lbl">Wickets</div></div>
+    <div class="sc"><div class="sc-num" id="s-dur" style="color:var(--accent2)">—</div><div class="sc-lbl">Est. Reel</div></div>
+  </div>
+
+  <!-- MAIN OUTPUT -->
+  <div class="panel" style="flex:1;margin-bottom:0">
+    <div class="otabs">
+      <div class="otab active" onclick="switchOut('highlights',this)">Highlights</div>
+      <div class="otab" onclick="switchOut('analysis',this)">Analysis</div>
+      <div class="otab" onclick="switchOut('export',this)">Export</div>
+      <div class="otab" onclick="switchOut('guide',this)">Guide</div>
+    </div>
+
+    <!-- HIGHLIGHTS -->
+    <div class="otc active" id="otc-highlights">
+      <div id="hl-empty" class="empty">
+        <div class="empty-icon">🏏</div>
+        <div class="empty-txt">Load data from any source, then click<br><strong style="color:var(--text)">Generate Highlights</strong></div>
+      </div>
+      <div id="hl-proc" class="proc">
+        <div class="spin"></div>
+        <div class="proc-msg" id="proc-msg">Scanning events...</div>
+      </div>
+      <div id="hl-output" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px">Selected Moments</div>
+          <div style="background:var(--accent);color:#000;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700" id="hl-count">0 clips</div>
+        </div>
+        <div class="hl-scroll" id="hl-list"></div>
+      </div>
+    </div>
+
+    <!-- ANALYSIS -->
+    <div class="otc" id="otc-analysis">
+      <div id="analysis-content">
+        <div class="empty" style="padding:40px 20px"><div class="empty-txt">Run highlight generation to see analysis.</div></div>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="otc" id="otc-export">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Export your generated highlights as a spreadsheet or JSON file.</div>
+      <div class="export-row">
+        <button class="btn btn-outline" onclick="exportHighlights('xlsx')">⬇ Export as Excel</button>
+        <button class="btn btn-outline" onclick="exportHighlights('csv')">⬇ Export as CSV</button>
+        <button class="btn btn-outline" onclick="exportHighlights('json')">⬇ Export as JSON</button>
+      </div>
+      <div id="export-preview" style="font-size:11px;color:var(--muted)">No highlights generated yet.</div>
+    </div>
+
+    <!-- GUIDE -->
+    <div class="otc" id="otc-guide">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:var(--card2);border-left:3px solid var(--wicket);border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:5px">P1 — Core Events <span style="color:var(--wicket);font-size:10px">(base +30–60 pts)</span></div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7">Six (+40), Boundary (+30), Wicket (+38), Winning shot (+60), Hat-trick. Always included — they change the outcome.</div>
+        </div>
+        <div style="background:var(--card2);border-left:3px solid var(--pressure);border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:5px">P2 — Match Pressure <span style="color:var(--pressure);font-size:10px">(bonus up to +35 pts)</span></div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7">pressure field (1–10) × 3.5. A six in over 19 with 8 runs needed scores far higher than a six in over 2. Context is everything.</div>
+        </div>
+        <div style="background:var(--card2);border-left:3px solid var(--milestone);border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:5px">P3 — Player Milestones <span style="color:var(--milestone);font-size:10px">(+50–65 pts)</span></div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7">Half-century (+50), Century (+65), 5-wkt haul (+55). Always included. Set <code style="background:rgba(255,255,255,0.07);padding:1px 4px;border-radius:3px">milestone</code> column value to include these.</div>
+        </div>
+        <div style="background:var(--card2);border-left:3px solid #b464ff;border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:5px">P4 — Crowd & Emotion <span style="color:#b464ff;font-size:10px">(bonus up to +15 pts)</span></div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7">crowd field ≥15/20 adds (crowd-10)×1.5 bonus. Audio spikes, commentary excitement, player celebrations.</div>
+        </div>
+        <div style="background:var(--card2);border-left:3px solid #64b4ff;border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:5px">P5 — Shot Quality <span style="color:#64b4ff;font-size:10px">(+7–15 pts)</span></div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7">excellent (+15), good (+7). Cover drives, helicopter shots, ramp shots. Use in shot column.</div>
+        </div>
+        <div style="background:var(--card2);border-left:3px solid var(--wicket);border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:5px">P6 — Turning Points <span style="color:var(--wicket);font-size:10px">(+20 pts)</span></div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7">Set <code style="background:rgba(255,255,255,0.07);padding:1px 4px;border-radius:3px">turning=true</code> for momentum shifts, star-player wickets, collapses, or last-ball finishes.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let matchData = [];
+let highlights = [];
+const CRIT = { six:true,four:true,wicket:true,milestone:true,pressure:true,emotion:true,skill:true,turning:true };
+
+// ─── SOURCE TAB SWITCH ───────────────────────────────────────────────────────
+function switchSrc(name, el) {
+  document.querySelectorAll('.src-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.src-pane').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pane-'+name).classList.add('active');
+}
+function switchOut(name, el) {
+  document.querySelectorAll('.otab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.otc').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('otc-'+name).classList.add('active');
+}
+
+// ─── CRITERIA TOGGLE ─────────────────────────────────────────────────────────
+document.querySelectorAll('.ci').forEach(el=>{
+  el.addEventListener('click',()=>{
+    el.classList.toggle('active');
+    CRIT[el.dataset.key]=el.classList.contains('active');
+  });
+});
+
+// ─── FILE UPLOAD ─────────────────────────────────────────────────────────────
+function onDragOver(e) { e.preventDefault(); document.getElementById('dropzone').classList.add('dragover'); }
+function onDragLeave(e) { document.getElementById('dropzone').classList.remove('dragover'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function onFileSelect(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+function processFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      let data;
+      if (ext === 'json') {
+        data = JSON.parse(e.target.result);
+      } else if (ext === 'csv') {
+        data = parseCSV(e.target.result);
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const wb = XLSX.read(e.target.result, {type:'binary'});
+        // Try every sheet, use the first one that has the required columns
+        let found = false;
+        for (const sheetName of wb.SheetNames) {
+          const ws = wb.Sheets[sheetName];
+          // sheet_to_json with defval so empty cells don't vanish
+          const raw = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false});
+          if (!raw.length) continue;
+          // normalise keys of first row and check for required cols
+          const firstKeys = Object.keys(raw[0]).map(k => cleanKey(k));
+          const hasRequired = REQ_COLS.every(r => firstKeys.includes(r));
+          if (hasRequired) { data = raw; found = true; break; }
+          // If keys don't match yet, this sheet might have banner rows —
+          // scan up to the first 5 rows to find the real header row
+          const allRows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+          for (let ri = 0; ri < Math.min(5, allRows.length); ri++) {
+            const rowKeys = allRows[ri].map(v => cleanKey(String(v||'')));
+            if (REQ_COLS.every(r => rowKeys.includes(r))) {
+              // Use this row as the header
+              const headers = allRows[ri].map(v => cleanKey(String(v||'')));
+              data = allRows.slice(ri+1)
+                .filter(r => r.some(v => v !== ''))
+                .map(r => {
+                  const obj = {};
+                  headers.forEach((h,i) => { if(h) obj[h] = r[i] ?? ''; });
+                  return obj;
+                });
+              found = true; break;
+            }
+          }
+          if (found) break;
+        }
+        if (!found || !data || !data.length) {
+          showUploadErr(['Could not find required columns in any sheet. Please download and use the provided template.']);
+          return;
+        }
+      } else {
+        showUploadErr(['Unsupported file type: .' + ext]);
+        return;
+      }
+      const errors = validateData(data);
+      if (errors.length) { showUploadErr(errors); return; }
+      loadData(normalizeData(data), file.name, data.length);
+      hideUploadErr();
+    } catch(err) {
+      showUploadErr(['Failed to parse file: ' + err.message]);
+    }
+  };
+  if (ext === 'xlsx' || ext === 'xls') reader.readAsBinaryString(file);
+  else reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h=>h.trim().replace(/"/g,''));
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{
+    const vals = line.split(',').map(v=>v.trim().replace(/"/g,''));
+    const obj = {};
+    headers.forEach((h,i)=>obj[h]=vals[i]||'');
+    return obj;
+  });
+}
+
+function showUploadErr(errs) {
+  const el=document.getElementById('upload-err');
+  el.innerHTML='<strong>Errors found:</strong><ul>'+errs.map(e=>`<li>${e}</li>`).join('')+'</ul>';
+  el.classList.add('show');
+}
+function hideUploadErr() { document.getElementById('upload-err').classList.remove('show'); }
+
+function clearFile() {
+  document.getElementById('file-input').value='';
+  document.getElementById('file-loaded').classList.remove('show');
+  matchData=[];
+  updateDataStatus(false,0,'');
+  renderPreview();
+}
+
+// ─── VALIDATION ──────────────────────────────────────────────────────────────
+// Strips newlines, collapses whitespace, lowercases — handles messy Excel headers
+function cleanKey(k) {
+  return String(k).replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase()
+    // strip parenthetical hints like "(1-20)" or "(optional)"
+    .replace(/\s*\(.*?\)/g,'').trim();
+}
+
+// Accepted aliases for each required column (first entry = canonical name)
+const COL_ALIASES = {
+  over:      ['over','over no','over number','ov'],
+  ball:      ['ball','ball no','ball number','bl','delivery'],
+  runs:      ['runs','run','runs scored'],
+  batsman:   ['batsman','batter','striker','batsman name','player'],
+  bowler:    ['bowler','bowler name','bowler no'],
+  event:     ['event','event type','delivery type','type'],
+  pressure:  ['pressure','pressure level','match pressure','press'],
+  crowd:     ['crowd','crowd score','crowd reaction','crowd level'],
+  shot:      ['shot','shot quality','shot type','quality'],
+  turning:   ['turning','turning point','tp','turning point?','is turning point'],
+};
+const REQ_COLS = Object.keys(COL_ALIASES);
+
+// Resolve a canonical column name from a raw key string
+function resolveCol(rawKey) {
+  const k = cleanKey(rawKey);
+  for (const [canonical, aliases] of Object.entries(COL_ALIASES)) {
+    if (aliases.includes(k)) return canonical;
+  }
+  return k; // return as-is if no alias match
+}
+
+function validateData(data) {
+  if (!Array.isArray(data) || data.length===0) return ['Data is empty or not an array'];
+  const errs = [];
+  const keys = Object.keys(data[0]).map(k => resolveCol(k));
+  REQ_COLS.forEach(col=>{ if(!keys.includes(col)) errs.push(`Missing required column: "${col}"`); });
+  return errs;
+}
+
+function normalizeData(raw) {
+  return raw.map(r=>{
+    // Build a resolved-key map once per row
+    const resolved = {};
+    Object.entries(r).forEach(([k,v]) => { resolved[resolveCol(k)] = v; });
+    const get = (k, def='') => resolved[k] !== undefined && resolved[k] !== '' ? resolved[k] : def;
+    return {
+      over:      parseInt(get('over',1))||1,
+      ball:      parseInt(get('ball',1))||1,
+      runs:      parseInt(get('runs',0))||0,
+      batsman:   String(get('batsman','Unknown')),
+      bowler:    String(get('bowler','Unknown')),
+      event:     String(get('event','normal')).toLowerCase().trim(),
+      pressure:  Math.min(10,Math.max(1,parseFloat(get('pressure',1))||1)),
+      crowd:     Math.min(20,Math.max(0,parseFloat(get('crowd',5))||5)),
+      shot:      String(get('shot','normal')).toLowerCase().trim(),
+      milestone: get('milestone',null)||null,
+      turning:   ['true','1','yes'].includes(String(get('turning',false)).toLowerCase().trim()),
+      notes:     String(get('notes',''))||''
+    };
+  // Filter out completely empty rows (user left blank rows in template)
+  }).filter(r => r.batsman !== 'Unknown' || r.runs > 0 || r.event !== 'normal');
+}
+
+function loadData(data, fname='', rows=0) {
+  matchData = data;
+  document.getElementById('file-loaded').classList.add('show');
+  document.getElementById('file-name').textContent = fname || `${rows} records loaded`;
+  document.getElementById('file-rows').textContent = `${data.length} rows`;
+  const ext = (fname.split('.').pop()||'').toLowerCase();
+  document.getElementById('file-icon').textContent = ext==='xlsx'||ext==='xls' ? '📊' : ext==='csv' ? '📋' : ext==='json' ? '{ }' : '📄';
+  updateDataStatus(true, data.length, fname);
+  renderPreview();
+}
+
+// ─── MANUAL ENTRY ─────────────────────────────────────────────────────────────
+let manualRowId = 0;
+function addManualRow(prefill={}) {
+  const id = manualRowId++;
+  const tbody = document.getElementById('manual-tbody');
+  const tr = document.createElement('tr');
+  tr.id = 'mr-'+id;
+  tr.innerHTML = `
+    <td><input type="number" value="${prefill.over||''}" min="1" max="20" style="width:38px" class="mr-over" id="mo-${id}"/></td>
+    <td><input type="number" value="${prefill.ball||''}" min="1" max="6" style="width:30px" class="mr-ball" id="mb-${id}"/></td>
+    <td><input type="number" value="${prefill.runs||0}" min="0" max="6" style="width:30px" id="mr2-${id}"/></td>
+    <td><input type="text" value="${prefill.batsman||''}" style="width:90px" id="mba-${id}" placeholder="Batsman"/></td>
+    <td><input type="text" value="${prefill.bowler||''}" style="width:80px" id="mbo-${id}" placeholder="Bowler"/></td>
+    <td><select style="width:70px" id="mev-${id}">
+      <option value="normal">normal</option>
+      <option value="six" ${prefill.event==='six'?'selected':''}>six</option>
+      <option value="four" ${prefill.event==='four'?'selected':''}>four</option>
+      <option value="wicket" ${prefill.event==='wicket'?'selected':''}>wicket</option>
+      <option value="milestone" ${prefill.event==='milestone'?'selected':''}>milestone</option>
+      <option value="winning" ${prefill.event==='winning'?'selected':''}>winning</option>
+    </select></td>
+    <td><input type="number" value="${prefill.pressure||3}" min="1" max="10" style="width:36px" id="mpr-${id}"/></td>
+    <td><input type="number" value="${prefill.crowd||5}" min="0" max="20" style="width:36px" id="mcr-${id}"/></td>
+    <td><select style="width:68px" id="msh-${id}">
+      <option value="normal" ${prefill.shot==='normal'||!prefill.shot?'selected':''}>normal</option>
+      <option value="good" ${prefill.shot==='good'?'selected':''}>good</option>
+      <option value="excellent" ${prefill.shot==='excellent'?'selected':''}>excellent</option>
+    </select></td>
+    <td><input type="text" value="${prefill.milestone||''}" style="width:70px" id="mmi-${id}" placeholder="e.g. 50*"/></td>
+    <td><input type="checkbox" ${prefill.turning?'checked':''} id="mtp-${id}"/></td>
+    <td><button class="del-btn" onclick="removeRow('mr-${id}')">×</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+function removeRow(id) { document.getElementById(id)?.remove(); }
+function loadManualData() {
+  const rows = document.querySelectorAll('#manual-tbody tr');
+  if (!rows.length) return;
+  const data = [];
+  rows.forEach((tr,i)=>{
+    const id = tr.id.replace('mr-','');
+    data.push({
+      over:parseInt(document.getElementById('mo-'+id)?.value)||1,
+      ball:parseInt(document.getElementById('mb-'+id)?.value)||1,
+      runs:parseInt(document.getElementById('mr2-'+id)?.value)||0,
+      batsman:document.getElementById('mba-'+id)?.value||'Unknown',
+      bowler:document.getElementById('mbo-'+id)?.value||'Unknown',
+      event:document.getElementById('mev-'+id)?.value||'normal',
+      pressure:parseFloat(document.getElementById('mpr-'+id)?.value)||3,
+      crowd:parseFloat(document.getElementById('mcr-'+id)?.value)||5,
+      shot:document.getElementById('msh-'+id)?.value||'normal',
+      milestone:document.getElementById('mmi-'+id)?.value||null,
+      turning:document.getElementById('mtp-'+id)?.checked||false,
+      notes:''
+    });
+  });
+  loadData(data,'manual-entry',data.length);
+  alert(`✅ ${data.length} rows loaded from manual entry!`);
+}
+// Pre-fill 3 blank rows
+[1,2,3].forEach(()=>addManualRow());
+
+// ─── JSON INPUT ───────────────────────────────────────────────────────────────
+function loadJsonData() {
+  const txt = document.getElementById('json-input').value.trim();
+  const errEl = document.getElementById('json-err');
+  if (!txt) { errEl.innerHTML='Paste JSON data first.'; errEl.classList.add('show'); return; }
+  try {
+    const data = JSON.parse(txt);
+    const errs = validateData(data);
+    if (errs.length) { errEl.innerHTML='<strong>Errors:</strong><ul>'+errs.map(e=>`<li>${e}</li>`).join('')+'</ul>'; errEl.classList.add('show'); return; }
+    errEl.classList.remove('show');
+    loadData(normalizeData(data),'json-input',data.length);
+  } catch(e) {
+    errEl.innerHTML='Invalid JSON: '+e.message; errEl.classList.add('show');
+  }
+}
+
+// ─── SAMPLE DATA ──────────────────────────────────────────────────────────────
+const SAMPLE = [
+  {over:1,ball:1,runs:0,batsman:'Rohit Sharma',bowler:'Starc',event:'normal',pressure:1,crowd:2,shot:'normal',milestone:null,turning:false,notes:'Dot ball'},
+  {over:1,ball:2,runs:4,batsman:'Rohit Sharma',bowler:'Starc',event:'four',pressure:1,crowd:8,shot:'excellent',milestone:null,turning:false,notes:'Cover drive, beautiful'},
+  {over:1,ball:4,runs:6,batsman:'Virat Kohli',bowler:'Starc',event:'six',pressure:1,crowd:15,shot:'excellent',milestone:null,turning:false,notes:'Over mid-on, massive'},
+  {over:2,ball:2,runs:0,batsman:'Rohit Sharma',bowler:'Hazlewood',event:'wicket',pressure:2,crowd:12,shot:'normal',milestone:null,turning:false,notes:'Caught at slip — Rohit OUT'},
+  {over:2,ball:5,runs:4,batsman:'Virat Kohli',bowler:'Hazlewood',event:'four',pressure:2,crowd:14,shot:'excellent',milestone:null,turning:false,notes:'Late cut, exquisite'},
+  {over:5,ball:1,runs:6,batsman:'Virat Kohli',bowler:'Maxwell',event:'six',pressure:3,crowd:17,shot:'excellent',milestone:null,turning:false,notes:'Helicopter shot! Crowd erupts'},
+  {over:5,ball:2,runs:4,batsman:'Virat Kohli',bowler:'Maxwell',event:'four',pressure:3,crowd:13,shot:'good',milestone:null,turning:false,notes:'Whip through midwicket'},
+  {over:5,ball:6,runs:6,batsman:'Virat Kohli',bowler:'Maxwell',event:'six',pressure:3,crowd:18,shot:'excellent',milestone:null,turning:false,notes:'Slog sweep over cow corner'},
+  {over:9,ball:3,runs:1,batsman:'Virat Kohli',bowler:'Cummins',event:'milestone',pressure:4,crowd:20,shot:'normal',milestone:'Kohli 50★',turning:false,notes:'Virat FIFTY!'},
+  {over:9,ball:4,runs:6,batsman:'Virat Kohli',bowler:'Cummins',event:'six',pressure:4,crowd:18,shot:'excellent',milestone:null,turning:false,notes:'Celebrates with six!'},
+  {over:11,ball:2,runs:0,batsman:'KL Rahul',bowler:'Hazlewood',event:'wicket',pressure:5,crowd:14,shot:'normal',milestone:null,turning:true,notes:'KL Rahul OUT — turning point'},
+  {over:11,ball:5,runs:6,batsman:'Suryakumar Yadav',bowler:'Hazlewood',event:'six',pressure:5,crowd:18,shot:'excellent',milestone:null,turning:false,notes:'Ramp shot — over the keeper'},
+  {over:14,ball:1,runs:4,batsman:'Suryakumar Yadav',bowler:'Maxwell',event:'four',pressure:6,crowd:14,shot:'excellent',milestone:null,turning:false,notes:'360° shot — unbelievable'},
+  {over:14,ball:2,runs:6,batsman:'Suryakumar Yadav',bowler:'Maxwell',event:'six',pressure:6,crowd:19,shot:'excellent',milestone:null,turning:false,notes:'Over third man from outside off'},
+  {over:14,ball:4,runs:0,batsman:'Suryakumar Yadav',bowler:'Maxwell',event:'wicket',pressure:6,crowd:15,shot:'normal',milestone:null,turning:true,notes:'SKY OUT — key wicket'},
+  {over:16,ball:2,runs:2,batsman:'Virat Kohli',bowler:'Cummins',event:'milestone',pressure:7,crowd:20,shot:'normal',milestone:'Kohli 100★',turning:false,notes:'CENTURY! Stadium on fire!'},
+  {over:16,ball:3,runs:4,batsman:'Virat Kohli',bowler:'Cummins',event:'four',pressure:7,crowd:16,shot:'good',milestone:null,turning:false,notes:'Follows century with a boundary'},
+  {over:18,ball:1,runs:6,batsman:'Hardik Pandya',bowler:'Starc',event:'six',pressure:9,crowd:19,shot:'excellent',milestone:null,turning:false,notes:'High pressure six'},
+  {over:18,ball:2,runs:4,batsman:'Hardik Pandya',bowler:'Starc',event:'four',pressure:9,crowd:17,shot:'good',milestone:null,turning:false,notes:'Massive pressure boundary'},
+  {over:18,ball:3,runs:0,batsman:'Hardik Pandya',bowler:'Starc',event:'wicket',pressure:9,crowd:16,shot:'normal',milestone:null,turning:true,notes:'Hardik OUT! Pressure shifts'},
+  {over:18,ball:5,runs:6,batsman:'Jadeja',bowler:'Starc',event:'six',pressure:10,crowd:20,shot:'excellent',milestone:null,turning:true,notes:'Match-turning SIX'},
+  {over:20,ball:1,runs:4,batsman:'Bumrah',bowler:'Cummins',event:'four',pressure:10,crowd:18,shot:'normal',milestone:null,turning:false,notes:'Slog boundary'},
+  {over:20,ball:5,runs:4,batsman:'Jadeja',bowler:'Cummins',event:'four',pressure:10,crowd:20,shot:'normal',milestone:null,turning:false,notes:'WINNING BOUNDARY!'},
+  {over:20,ball:6,runs:0,batsman:'Jadeja',bowler:'Cummins',event:'winning',pressure:10,crowd:20,shot:'normal',milestone:null,turning:true,notes:'Match over — celebrations!'},
+];
+function loadSampleData() {
+  loadData([...SAMPLE],'sample-match.json',SAMPLE.length);
+  switchSrc('upload', document.querySelector('.src-tab'));
+  document.querySelector('.src-tab').classList.add('active');
+}
+
+// ─── DATA STATUS ─────────────────────────────────────────────────────────────
+function updateDataStatus(ok, count, fname) {
+  const el = document.getElementById('data-status');
+  el.className = 'data-status ' + (ok?'ds-ok':'ds-none');
+  el.innerHTML = ok
+    ? `<div class="status-dot" style="background:var(--accent)"></div><span>${count} deliveries loaded${fname?' from <strong>'+fname+'</strong>':''}</span>`
+    : `<div class="status-dot" style="background:var(--muted)"></div><span>No data loaded yet</span>`;
+}
+
+// ─── PREVIEW TABLE ────────────────────────────────────────────────────────────
+function renderPreview() {
+  const tbody = document.getElementById('prev-tbody');
+  tbody.innerHTML='';
+  if (!matchData.length) return;
+  const threshold = parseInt(document.getElementById('threshold').value);
+  matchData.slice(0,100).forEach(b=>{
+    const {score}=scoreHL(b);
+    const isHL = score>=threshold;
+    let sbClass='sb-o', txt=b.runs;
+    if(b.event==='six') {sbClass='sb-6'; txt=6;}
+    else if(b.event==='four') {sbClass='sb-4'; txt=4;}
+    else if(b.event==='wicket') {sbClass='sb-w'; txt='W';}
+    let ep='<span class="ep ep-n">'+b.event+'</span>';
+    if(b.event==='six') ep='<span class="ep ep-6">Six</span>';
+    else if(b.event==='four') ep='<span class="ep ep-4">Four</span>';
+    else if(b.event==='wicket') ep='<span class="ep ep-w">Wkt</span>';
+    else if(b.event==='milestone') ep='<span class="ep ep-m">★</span>';
+    let scClass='sc-val sc-lo';
+    if(score>=70) scClass='sc-val sc-hi';
+    else if(score>=50) scClass='sc-val sc-md';
+    const tr=document.createElement('tr');
+    if(isHL) tr.className='sel';
+    tr.innerHTML=`<td>${b.over}.${b.ball}</td><td><span class="sb ${sbClass}">${txt}</span></td><td>${ep}</td><td style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.batsman.split(' ').pop()}</td><td><span class="${scClass}">${score||'—'}</span></td><td><div class="chk ${isHL?'yes':''}"></div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('threshold').addEventListener('input', renderPreview);
+
+// ─── SCORING ENGINE ───────────────────────────────────────────────────────────
+function scoreHL(ball) {
+  let score=0; const reasons=[];
+  if(ball.event==='six'&&CRIT.six){score+=40;reasons.push({tag:'six',label:'Six'});}
+  if(ball.event==='four'&&CRIT.four){score+=30;reasons.push({tag:'four',label:'Four'});}
+  if(ball.event==='wicket'&&CRIT.wicket){score+=38;reasons.push({tag:'wicket',label:'Wicket'});}
+  if(ball.event==='winning'){score+=60;reasons.push({tag:'wicket',label:'Winning moment'});}
+  if(ball.event==='milestone'&&CRIT.milestone){
+    const is100=ball.milestone&&(ball.milestone.includes('100')||ball.milestone.includes('century'));
+    score+=is100?65:50;
+    reasons.push({tag:'milestone',label:ball.milestone||'Milestone'});
+  }
+  if(CRIT.pressure&&ball.pressure>=7){const b=Math.round(ball.pressure*3.5);score+=b;reasons.push({tag:'pressure',label:`Pressure ×${ball.pressure}`});}
+  if(CRIT.emotion&&ball.crowd>=15){const b=Math.round((ball.crowd-10)*1.5);score+=b;reasons.push({tag:'emotion',label:`Crowd ${ball.crowd}/20`});}
+  if(CRIT.skill&&ball.shot==='excellent'){score+=15;reasons.push({tag:'skill',label:'Elite shot'});}
+  else if(CRIT.skill&&ball.shot==='good'){score+=7;}
+  if(CRIT.turning&&ball.turning){score+=20;reasons.push({tag:'wicket',label:'Turning point'});}
+  return {score:Math.min(score,100),reasons};
+}
+
+// ─── PROCESS ─────────────────────────────────────────────────────────────────
+function runProcess() {
+  if (!matchData.length) { alert('⚠️ Please load match data first!'); return; }
+  const threshold = parseInt(document.getElementById('threshold').value);
+  document.getElementById('hl-empty').style.display='none';
+  document.getElementById('hl-output').style.display='none';
+  document.getElementById('hl-proc').classList.add('show');
+  switchOut('highlights',document.querySelector('.otab'));
+  const msgs=['Scanning ball-by-ball events...','Calculating pressure scores...','Detecting crowd emotion signals...','Ranking highlight moments...','Assembling reel...'];
+  let mi=0;
+  const iv=setInterval(()=>{document.getElementById('proc-msg').textContent=msgs[mi++%msgs.length];},400);
+  setTimeout(()=>{
+    clearInterval(iv);
+    document.getElementById('hl-proc').classList.remove('show');
+    highlights = matchData.map(b=>{const{score,reasons}=scoreHL(b);return{...b,score,reasons};}).filter(b=>b.score>=threshold).sort((a,b)=>b.score-a.score);
+    renderHighlights(highlights);
+    renderStats(highlights);
+    renderAnalysis(highlights);
+    renderExportPreview(highlights);
+    renderPreview();
+    document.getElementById('stats-row').style.display='grid';
+    document.getElementById('hl-output').style.display='block';
+  },1800);
+}
+
+// ─── RENDER HIGHLIGHTS ────────────────────────────────────────────────────────
+function renderHighlights(hls) {
+  const list=document.getElementById('hl-list');
+  list.innerHTML='';
+  document.getElementById('hl-count').textContent=`${hls.length} clips`;
+  const sorted=[...hls].sort((a,b)=>(a.over*10+a.ball)-(b.over*10+b.ball));
+  sorted.forEach(h=>{
+    const typeClass=h.event==='six'?'t-six':h.event==='four'?'t-four':h.event==='wicket'?'t-wicket':h.event==='milestone'?'t-milestone':h.event==='winning'?'t-winning':'t-pressure';
+    const tags=h.reasons.map(r=>`<span class="htag ht-${r.tag}">${r.label}</span>`).join('');
+    const sc=h.score>=80?'var(--six)':h.score>=65?'var(--accent2)':'var(--muted)';
+    const d=document.createElement('div');
+    d.className=`hl-card ${typeClass}`;
+    d.innerHTML=`<div class="hl-over">${h.over}.${h.ball}<small>Over</small></div><div class="hl-info"><h3>${h.notes||h.event+' — '+h.batsman}</h3><p>${h.batsman} vs ${h.bowler}${h.milestone?' · '+h.milestone:''}</p><div class="hl-tags">${tags}</div></div><div class="hl-sc"><div class="num" style="color:${sc}">${h.score}</div><div class="lbl">Score</div></div>`;
+    list.appendChild(d);
+  });
+}
+
+function renderStats(hls) {
+  document.getElementById('s-total').textContent=hls.length;
+  document.getElementById('s-sixes').textContent=hls.filter(h=>h.event==='six').length;
+  document.getElementById('s-wickets').textContent=hls.filter(h=>h.event==='wicket').length;
+  const s=hls.length*12;
+  document.getElementById('s-dur').textContent=`${Math.floor(s/60)}m${s%60}s`;
+}
+
+function renderAnalysis(hls) {
+  if(!hls.length){document.getElementById('analysis-content').innerHTML='<div class="empty"><div class="empty-txt">No highlights to analyse.</div></div>';return;}
+  const cats=[
+    {k:'six',l:'Sixes',c:'var(--six)'},
+    {k:'four',l:'Boundaries',c:'var(--four)'},
+    {k:'wicket',l:'Wickets',c:'var(--wicket)'},
+    {k:'milestone',l:'Milestones',c:'var(--milestone)'},
+    {k:'winning',l:'Winning',c:'var(--accent2)'},
+  ];
+  let bars=cats.map(c=>{
+    const cnt=hls.filter(h=>h.event===c.k).length;
+    const pct=Math.round((cnt/hls.length)*100)||0;
+    return `<div class="bar-row"><div class="bar-info"><span>${c.l}</span><span>${cnt} clips · ${pct}%</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${c.c}"></div></div></div>`;
+  }).join('');
+  const top=[...hls].sort((a,b)=>b.score-a.score)[0];
+  const presHls=hls.filter(h=>h.pressure>=8).length;
+  document.getElementById('analysis-content').innerHTML=`
+    <div style="padding:18px">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Category Breakdown</div>
+      ${bars}
+      <div style="margin-top:16px;display:grid;gap:7px">
+        <div style="background:var(--card2);border-radius:7px;padding:10px 12px;font-size:11px"><span style="color:var(--muted)">Top moment: </span><span style="color:var(--accent)">${top.over}.${top.ball} — ${top.notes||top.event}</span><span style="color:var(--muted)"> (score: ${top.score})</span></div>
+        <div style="background:var(--card2);border-radius:7px;padding:10px 12px;font-size:11px"><span style="color:var(--muted)">High-pressure highlights: </span><span style="color:var(--pressure)">${presHls} moments (pressure ≥8)</span></div>
+        <div style="background:var(--card2);border-radius:7px;padding:10px 12px;font-size:11px"><span style="color:var(--muted)">Avg highlight score: </span><span style="color:var(--accent2)">${Math.round(hls.reduce((a,b)=>a+b.score,0)/hls.length)}</span></div>
+        <div style="background:var(--card2);border-radius:7px;padding:10px 12px;font-size:11px"><span style="color:var(--muted)">Estimated reel: </span><span style="color:var(--six)">${Math.floor(hls.length*12/60)} min ${(hls.length*12)%60} sec</span><span style="color:var(--muted)"> at 12s per clip</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderExportPreview(hls) {
+  document.getElementById('export-preview').innerHTML = hls.length
+    ? `<div style="background:var(--card2);border-radius:7px;padding:10px 12px;font-size:11px;color:var(--muted)">${hls.length} highlight records ready to export. Choose a format above.</div>`
+    : 'No highlights generated yet.';
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+function exportHighlights(format) {
+  if(!highlights.length){alert('Generate highlights first!');return;}
+  const rows=highlights.map(h=>({
+    over:h.over,ball:h.ball,batsman:h.batsman,bowler:h.bowler,
+    event:h.event,runs:h.runs,milestone:h.milestone||'',
+    pressure:h.pressure,crowd:h.crowd,shot:h.shot,
+    turning:h.turning,notes:h.notes,score:h.score,
+    reasons:h.reasons.map(r=>r.label).join(' | ')
+  }));
+  if(format==='json'){
+    const blob=new Blob([JSON.stringify(rows,null,2)],{type:'application/json'});
+    dlBlob(blob,'cricket_highlights.json');
+  } else {
+    const ws=XLSX.utils.json_to_sheet(rows);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,'Highlights',ws);
+    if(format==='csv'){
+      const csv=XLSX.utils.sheet_to_csv(ws);
+      dlBlob(new Blob([csv],{type:'text/csv'}),'cricket_highlights.csv');
+    } else {
+      XLSX.writeFile(wb,'cricket_highlights.xlsx');
+    }
+  }
+}
+function dlBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+
+// ─── TEMPLATE DOWNLOAD ────────────────────────────────────────────────────────
+function downloadTemplate(fmt) {
+  const headers=['over','ball','runs','batsman','bowler','event','pressure','crowd','shot','milestone','turning','notes'];
+  const sample=[
+    [1,1,0,'Player A','Bowler X','normal',2,3,'normal','','FALSE','Dot ball'],
+    [1,2,4,'Player A','Bowler X','four',2,9,'excellent','','FALSE','Cover drive'],
+    [1,4,6,'Player B','Bowler X','six',2,16,'excellent','','FALSE','Over mid-on'],
+    [2,2,0,'Player A','Bowler Y','wicket',3,12,'normal','','FALSE','Caught at slip'],
+    [9,3,1,'Player A','Bowler Z','milestone',4,20,'normal','Player A 50*','FALSE','FIFTY!'],
+    [20,5,4,'Player C','Bowler Z','winning',10,20,'normal','','TRUE','WINNING SHOT!'],
+  ];
+  if(fmt==='json'){
+    const data=sample.map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]])));
+    dlBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'cricket_template.json');
+  } else {
+    const ws=XLSX.utils.aoa_to_sheet([headers,...sample]);
+    ws['!cols']=headers.map(()=>({wch:14}));
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,'BallByBall',ws);
+    if(fmt==='csv'){
+      const csv=XLSX.utils.sheet_to_csv(ws);
+      dlBlob(new Blob([csv],{type:'text/csv'}),'cricket_template.csv');
+    } else {
+      XLSX.writeFile(wb,'cricket_template.xlsx');
+    }
+  }
+}
+</script>
+</body>
+</html>
